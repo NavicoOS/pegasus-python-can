@@ -34,7 +34,9 @@ $ python pegasus.py
 $ 
 ```
 
-This should actually works on Windows too! Thanks to pyUSB.
+Notes:
+ - USB packets can be dumped using `--debug-usb`.
+ - This should actually works on Windows too! Thanks to pyUSB.
 
 For reference:
 ```

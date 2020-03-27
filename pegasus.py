@@ -3,6 +3,7 @@
 import usb.core
 import usb.util
 import time
+import sys
 
 # From PegasusPcSw/PegasusIntf/PegasusReqCodec.h
 # tReqType enums related to CAN, there are plenty more!
@@ -53,19 +54,16 @@ class PegasusInterface:
     PRIMARY_CHANNEL = 0
     SECONDARY_CHANNEL = 1
 
-    def __init__(self):
-        # Find the device
-        dev = usb.core.find(idVendor=NAVICO_VENDOR_ID,
-                            idProduct=PEGASUS_PRODUCT_ID)
-        assert dev is not None
+    def __init__(self, usb_device, debug=False):
         # No set_configuration(), conflicts with usb-hid (virtual
         # keyboard/mouse)
         # 3rd interface is CAN, choose the first (and only) alternate setting
-        iface = dev.get_active_configuration()[(2, 0)]
+        iface = usb_device.get_active_configuration()[(2, 0)]
         # Get r/w end points
         self._out_ep = iface[1]
         self._in_ep = iface[0]
         self._packet_id = 0
+        self._debug = debug
 
     # Type: 9, Req: channel8 flags8, Ans: handle8 status16
     # Apparently the API doesn't use handle, have to pass channel number when
@@ -156,12 +154,14 @@ class PegasusInterface:
         count = 4 + len(payload)
         track_id = self._packet_id.to_bytes(2, byteorder='little')
         req = bytearray([count, type]) + track_id + bytearray(payload)
-        # print("  >", req)
+        if self._debug:
+            print("USB > ", req.hex())
         assert self._out_ep.write(req) == count
 
     def _read_usb_packet(self, type, payload_length):
         ans = self._in_ep.read(4+payload_length)
-        # print("  <", ans)
+        if self._debug:
+            print("USB < ", bytearray(ans).hex())
         assert len(ans) == 4+payload_length
         assert ans[0] == 4+payload_length
         assert ans[1] == type
@@ -170,8 +170,13 @@ class PegasusInterface:
 
 
 if __name__ == "__main__":
+    debug_usb = len(sys.argv) > 1 and sys.argv[1] == "--debug-usb"
+    # Find the device
+    usb_device = usb.core.find(idVendor=NAVICO_VENDOR_ID,
+                               idProduct=PEGASUS_PRODUCT_ID)
+    assert usb_device is not None
     channel = PegasusInterface.PRIMARY_CHANNEL
-    pegasus = PegasusInterface()
+    pegasus = PegasusInterface(usb_device, debug=debug_usb)
     pegasus.can_open(channel)
     pegasus.can_bus_on(channel)
     while True:
@@ -181,8 +186,10 @@ if __name__ == "__main__":
             part2 = " ".join("{:02X}".format(d) for d in data)
             print(part1, part2)
         try:
-            time.sleep(0.05)
+            time.sleep(0.005)
         except KeyboardInterrupt:
             break
+    tx, rx, err = pegasus.get_can_stats(channel)
+    print("\nCounters: Rx={}, Tx={}, Err={}".format(rx, tx, err))
     pegasus.can_bus_off(channel)
     pegasus.can_close(channel)
