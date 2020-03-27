@@ -181,12 +181,13 @@ if __name__ == "__main__":
     pegasus.can_bus_on(channel)
     while True:
         ts, flags, id, data = pegasus.can_read(channel)
-        if ts > 0:
-            part1 = "{:06} {:02X} {:08X}".format(ts, flags, id)
-            part2 = " ".join("{:02X}".format(d) for d in data)
-            print(part1, part2)
         try:
-            time.sleep(0.005)
+            if ts > 0:
+                part1 = "{:06} {:02X} {:08X}".format(ts, flags, id)
+                part2 = " ".join("{:02X}".format(d) for d in data)
+                print(part1, part2)
+            else:
+                time.sleep(0.01)
         except KeyboardInterrupt:
             break
     tx, rx, err = pegasus.get_can_stats(channel)
