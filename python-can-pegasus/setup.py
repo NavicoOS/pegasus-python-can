@@ -6,10 +6,9 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name='python-can-pegasus',  
     version='0.1',
-    #scripts=['dokr'] ,
     entry_points={
         'can.interface': [
-            "pegasus=PegasusBus:PegasusBus",
+            "pegasus=pegasus_bus:PegasusBus",
         ]
     },
     author="Christian Gagneraud",

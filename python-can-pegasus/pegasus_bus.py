@@ -3,7 +3,7 @@ import can
 import logging
 import time
 
-import pegasus
+import pegasus_iface
 
 
 log = logging.getLogger(__name__)
@@ -15,15 +15,15 @@ def _get_pegasus_device():
     global PEGASUS_DEVICE
     if PEGASUS_DEVICE is not None:
         return PEGASUS_DEVICE
-    pcreq = pegasus.get_a_pcreq_iface()
-    PEGASUS_DEVICE = pegasus.PegasusUsbInterface(pcreq)
+    pcreq = pegasus_iface.get_a_pcreq_iface()
+    PEGASUS_DEVICE = pegasus_iface.PegasusUsbInterface(pcreq)
     return PEGASUS_DEVICE
 
 
 class PegasusBus(can.BusABC):
     def __init__(self, channel, **kwargs):
         super().__init__(channel=channel, **kwargs)
-        self._channel = channel
+        self._channel = int(channel)
         self._pegasus = _get_pegasus_device()
         self._pegasus.can_open(self._channel)
         self._pegasus.can_bus_on(self._channel)
@@ -35,11 +35,11 @@ class PegasusBus(can.BusABC):
     def send(self, msg: can.Message, timeout=None):
         flags = 0
         if msg.is_extended_id:
-            flags = flags | pegasus.kvCAN_MSG_EXT
+            flags = flags | pegasus_iface.kvCAN_MSG_EXT
         if msg.is_error_frame:
-            flags = flags | pegasus.kvCAN_MSG_ERROR_FRAME
+            flags = flags | pegasus_iface.kvCAN_MSG_ERROR_FRAME
         if msg.is_remote_frame:
-            flags = flags | pegasus.kvCAN_MSG_RTR
+            flags = flags | pegasus_iface.kvCAN_MSG_RTR
         frameId = msg.arbitration_id
         payload = msg.data
         self._pegasus.can_write(self._channel, flags, frameId, payload)
@@ -50,9 +50,9 @@ class PegasusBus(can.BusABC):
             filtering_done = False
             ts, flags, id, data = self._pegasus.can_read(self._channel)
             if ts is not None:
-                ext = (flags & pegasus.kvCAN_MSG_EXT) != 0
-                err = (flags & pegasus.kvCAN_MSG_ERROR_FRAME) != 0
-                rtr = (flags & pegasus.kvCAN_MSG_RTR) != 0
+                ext = (flags & pegasus_iface.kvCAN_MSG_EXT) != 0
+                err = (flags & pegasus_iface.kvCAN_MSG_ERROR_FRAME) != 0
+                rtr = (flags & pegasus_iface.kvCAN_MSG_RTR) != 0
                 dlc = len(data)
                 msg = can.Message(arbitration_id=id, is_extended_id=ext,
                                   is_remote_frame=rtr, is_error_frame=err,
