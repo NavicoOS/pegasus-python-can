@@ -14,6 +14,10 @@ $ # Output is time stamp, flags, frame ID, payload.
 $ # CTRL-C to stop
 $ # 1 NSS evo3 and 1 Naiad on CAN bus
 $ python pegasus.py
+Firmware version: v0.13
+Serial number:    0xFFFFFFFF
+PlatformId:       0x03EC
+BoardId:          0x0000
 023702 04 010209F8 C0 66 09 EA 04 FD 0E 68
 023753 04 010109F8 FF FF FF 7F FF FF FF 7F
 023804 04 020109F8 55 FF FF FF FF FF FF FF
@@ -31,12 +35,13 @@ $ python pegasus.py
 024412 04 010209F8 C1 66 09 EA CB FC 0E 68
 024463 04 020209F8 7F FC B9 1A 24 00 FF FF
 ^C
+Counters: Rx=1204, Tx=0, Err=0
 $ 
 ```
 
 Notes:
  - USB packets can be dumped using `--debug-usb`.
- - This should actually works on Windows too! Thanks to pyUSB.
+ - This script should work on Windows too! Thanks to pyUSB.
 
 For reference:
 ```
