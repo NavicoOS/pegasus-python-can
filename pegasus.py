@@ -117,9 +117,7 @@ class PegasusInterface:
         if status == kvCAN_ERR_NOMSG:
             return (0, 0, 0, b'')  # No msg avail.
         flags = self._usb_u8(2)
-        id_high = self._usb_u16(3)
-        id_low = self._usb_u16(5)
-        id = id_low + 65536*id_high
+        id = self._usb_u32(3)
         count = self._usb_u8(7)
         data = self._reply[8:8+count]
         ts = self._usb_u16(8+count)
@@ -127,11 +125,11 @@ class PegasusInterface:
         return (ts, flags, id, data)
 
     # Type: 14, Req: handle8 flags8 id32 len8 data*, Ans: status16
-    def can_write(self, channel, frameId, payload):
-        # FIXME: FramId is 2 u16
-        buf = [channel, kvCAN_MSG_EXT] + \
-              list(frameId) + [len(payload)] + list(payload)
-        self._usb_bulk(PRT_CANWRITE, buf, 2)
+    def can_write(self, channel, flags, frame_id, payload):
+        params = bytearray([channel, flags]) + \
+              frame_id.to_bytes(4, byteorder='little') + \
+              bytearray([len(payload)]) + payload
+        self._usb_bulk(PRT_CANWRITE, params, 2)
         status = self._usb_u16(0)
         assert status == kvCAN_OK
 
