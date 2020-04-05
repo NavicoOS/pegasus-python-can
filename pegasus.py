@@ -1,4 +1,9 @@
+#!/usr/bin/env python3
+
 # See https://github.com/pyusb/pyusb/blob/master/docs/tutorial.rst
+
+# This implementation uses the Firmware/USB/PcReq interface.
+# This is what PegasusPcSw/PegasusIntf uses.
 
 import usb.core
 import usb.util
@@ -49,26 +54,36 @@ kvCAN_MSG_ERROR_FRAME = 0x20  # /* Msg represents an error frame */
 NAVICO_VENDOR_ID = 0x1cda
 PEGASUS_PRODUCT_ID = 0x03e8
 
+KEYBOARD_IFACE = 0
+MOUSE_IFACE = 1
+CAN_IFACE = 2
+CAN_ALT_SETTING = 0
 
 class PegasusInterface:
     PRIMARY_CHANNEL = 0
     SECONDARY_CHANNEL = 1
 
-    def __init__(self, usb_device, debug=False):
-        # No set_configuration(), conflicts with usb-hid (virtual
-        # keyboard/mouse)
-        # 3rd interface is CAN, choose the first (and only) alternate setting
-        iface = usb_device.get_active_configuration()[(2, 0)]
-        # Get r/w end points
+    def __init__(self, iface, debug=False):
         self._out_ep = iface[1]
         self._in_ep = iface[0]
         self._packet_id = 0
         self._debug = debug
 
+    # Type: 1, req: none, Ans: swMinor8, swMajor8, hwPlatform16, hwBoard16, nvmSerNum32
+    def get_descriptor(self):
+        self._usb_bulk(PRT_GET_DESCRIPTOR, [], 10)
+        minor = self._usb_u8(0)
+        major = self._usb_u8(1)
+        platform = self._usb_u16(2)
+        board = self._usb_u16(4)
+        sernum = self._usb_u32(6)
+        return minor, major, platform, board, sernum
+
     # Type: 9, Req: channel8 flags8, Ans: handle8 status16
     # Apparently the API doesn't use handle, have to pass channel number when
     # a handle is needed (!?!)
     def can_open(self, channel):
+        self._usb_bulk(PRT_CANBUSOFF, [channel], 2)  # blind busoff
         self._usb_bulk(PRT_CANCLOSE, [channel], 2)  # blind close
         flags = 0  # TBD: what to do with these flags
         self._usb_bulk(PRT_CANOPEN, [channel, flags], 3)
@@ -171,25 +186,48 @@ class PegasusInterface:
 
 if __name__ == "__main__":
     debug_usb = len(sys.argv) > 1 and sys.argv[1] == "--debug-usb"
+
     # Find the device
     usb_device = usb.core.find(idVendor=NAVICO_VENDOR_ID,
                                idProduct=PEGASUS_PRODUCT_ID)
     assert usb_device is not None
+
+    # Detach USB-HID, so that we can do the configuration ourselves
+    usb_device.detach_kernel_driver(KEYBOARD_IFACE)
+    usb_device.detach_kernel_driver(MOUSE_IFACE)
+    usb_device.set_configuration(1)
+
+    # Create a PegasusInterface from the USB PcReq interface
+    conf = usb_device.get_active_configuration()
+    pcreq_iface = conf[(CAN_IFACE, CAN_ALT_SETTING)]
     channel = PegasusInterface.PRIMARY_CHANNEL
-    pegasus = PegasusInterface(usb_device, debug=debug_usb)
+    pegasus = PegasusInterface(pcreq_iface, debug=debug_usb)
+
+    # Print Pegasus device info
+    minor, major, platform, board, sernum = pegasus.get_descriptor()
+    print("Firmware version: v{}.{}".format(major, minor))
+    print("Serial number:    0x{:08X}".format(sernum))
+    print("PlatformId:       0x{:04X}".format(platform))
+    print("BoardId:          0x{:04X}".format(board))
+
+    # Open CAN bus
     pegasus.can_open(channel)
     pegasus.can_bus_on(channel)
+
+    # Dump CAN frames
     while True:
         ts, flags, id, data = pegasus.can_read(channel)
         try:
             if ts > 0:
-                part1 = "{:06} {:02X} {:08X}".format(ts, flags, id)
+                part1 = "CAN < {:06} {:02X} {:08X}".format(ts, flags, id)
                 part2 = " ".join("{:02X}".format(d) for d in data)
                 print(part1, part2)
             else:
                 time.sleep(0.01)
         except KeyboardInterrupt:
             break
+
+    # Print stats and close
     tx, rx, err = pegasus.get_can_stats(channel)
     print("\nCounters: Rx={}, Tx={}, Err={}".format(rx, tx, err))
     pegasus.can_bus_off(channel)
