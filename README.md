@@ -9,7 +9,7 @@ $ sudo chown $(id -un).$(id -gn) /dev/bus/usb/008/011
 $ # Setup virtual env
 $ virtualenv -p python3 venv
 $ . venv/bin/activate
-$ pip install -r requirements.txt
+$ pip install python-can-pegasus/
 $ # Output is time stamp, flags, frame ID, payload.
 $ # CTRL-C to stop
 $ # 1 NSS evo3 and 1 Naiad on CAN bus
