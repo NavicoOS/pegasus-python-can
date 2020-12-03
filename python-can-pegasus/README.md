@@ -43,4 +43,4 @@ Timestamp:       47.316000    ID: 08ff0000    X                DLC:  8    13 99 
 ^C
 ```
 
-
+`pegasus_iface.py` is the USB device driver, `pegasus_bus.py` is the `python-can` plugin.
