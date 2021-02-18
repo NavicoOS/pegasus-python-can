@@ -1,4 +1,4 @@
-Pegasus on Linux: Proof of Concept
+# Pegasus on Linux: Proof of Concept with python
 
 TL-DW;
 ```
@@ -12,7 +12,7 @@ $ . venv/bin/activate
 $ pip install python-can-pegasus/
 $ # Output is time stamp, flags, frame ID, payload.
 $ # CTRL-C to stop
-$ # 1 NSS evo3 and 1 Naiad on CAN bus
+$ # 1 NSS evo3 and 1 NSX on CAN bus
 $ python pegasus.py
 Firmware version: v0.13
 Serial number:    0xFFFFFFFF
